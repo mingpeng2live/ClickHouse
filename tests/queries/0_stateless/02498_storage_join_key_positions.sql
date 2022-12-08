@@ -22,11 +22,18 @@ SELECT * FROM (SELECT key3 AS c, key1 AS a, key2 AS b FROM t1) AS t1 ALL INNER J
 SELECT * FROM (SELECT key3 AS c, key1 AS a, key2 AS b FROM t1) AS t1 ALL INNER JOIN tj ON t1.a = tj.key1 AND t1.b = tj.key2 AND t1.c = tj.key3 ORDER BY t1.a;
 SELECT * FROM (SELECT key3 AS c, key1 AS a, key2 AS b FROM t1) AS t1 ALL INNER JOIN tj ON t1.c = tj.key3 AND t1.a = tj.key1 AND t1.b = tj.key2 ORDER BY t1.a;
 
-SELECT * FROM t1 ALL INNER JOIN tj ON 1; -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
-SELECT * FROM t1 ALL INNER JOIN tj ON 0; -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
-SELECT * FROM t1 ALL INNER JOIN tj ON NULL; -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
-SELECT * FROM t1 ALL INNER JOIN tj ON 1 == 1; -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
-SELECT * FROM t1 ALL INNER JOIN tj ON 1 != 1; -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
+SELECT * FROM t1 ALL INNER JOIN tj ON 1; -- { serverError INVALID_JOIN_ON_EXPRESSION }
+SELECT * FROM t1 ALL INNER JOIN tj ON 0; -- { serverError INVALID_JOIN_ON_EXPRESSION }
+SELECT * FROM t1 ALL INNER JOIN tj ON NULL; -- { serverError INVALID_JOIN_ON_EXPRESSION }
+SELECT * FROM t1 ALL INNER JOIN tj ON 1 != 2; -- { serverError INVALID_JOIN_ON_EXPRESSION }
+SELECT * FROM t1 ALL INNER JOIN tj ON 1 != 1; -- { serverError INVALID_JOIN_ON_EXPRESSION }
+
+-- Here is another error code because equality is handled differently in CollectJoinOnKeysVisitor.
+-- We can change the error code, but it will become inconsistent for other cases
+-- where we actually expect AMBIGUOUS_COLUMN_NAME instead of INVALID_JOIN_ON_EXPRESSION.
+-- These checks will be more reliable after switching to a new analyzer.
+SELECT * FROM t1 ALL INNER JOIN tj ON 1 == 1; -- { serverError AMBIGUOUS_COLUMN_NAME }
+SELECT * FROM t1 ALL INNER JOIN tj ON 1 == 2; -- { serverError AMBIGUOUS_COLUMN_NAME }
 
 SELECT * FROM t1 ALL INNER JOIN tj USING (key2, key3); -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
 SELECT * FROM t1 ALL INNER JOIN tj USING (key1, key2, attr); -- { serverError INCOMPATIBLE_TYPE_OF_JOIN }
