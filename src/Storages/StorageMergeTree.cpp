@@ -1,4 +1,5 @@
 #include "StorageMergeTree.h"
+#include "Core/QueryProcessingStage.h"
 #include "Storages/MergeTree/IMergeTreeDataPart.h"
 
 #include <optional>
@@ -231,7 +232,7 @@ void StorageMergeTree::read(
     if (enable_parallel_reading)
         LOG_TRACE(log, "Parallel reading from replicas enabled: {}", enable_parallel_reading);
 
-    auto settings = local_context->getSettingsRef();
+    auto & settings = local_context->getSettingsRef();
     bool parallel_replicas = settings.max_parallel_replicas > 1 && settings.allow_experimental_parallel_reading_from_replicas && !settings.use_hedged_requests && !local_context->getClientInfo().collaborate_with_initiator;
 
     if (parallel_replicas)

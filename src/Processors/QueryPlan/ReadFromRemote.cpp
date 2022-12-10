@@ -105,7 +105,7 @@ ReadFromRemote::ReadFromRemote(
     Poco::Logger * log_,
     UInt32 shard_count_,
     std::shared_ptr<const StorageLimitsList> storage_limits_)
-    : ISourceStep(DataStream{.header = std::move(header_)})
+    : ISourceStep(DataStream{.header = header_})
     , shards(std::move(shards_))
     , stage(stage_)
     , main_table(std::move(main_table_))
@@ -280,6 +280,8 @@ ReadFromParallelRemoteReplicasStep::ReadFromParallelRemoteReplicasStep(
     Poco::Logger * log_,
     std::shared_ptr<const StorageLimitsList> storage_limits_)
     : ISourceStep(DataStream{.header = std::move(header_)})
+    , shard_info(shard_info_)
+    , query_ast(query_ast_)
     , coordinator(std::move(coordinator_))
     , stage(std::move(stage_))
     , main_table(std::move(main_table_))
@@ -309,12 +311,6 @@ void ReadFromParallelRemoteReplicasStep::enforceAggregationInOrder()
 {
     DB::enforceAggregationInOrder(stage, *context);
 }
-
-void ReadFromParallelRemoteReplicasStep::requestReadingInOrder()
-{
-    coordinator->setMode(CoordinationMode::WithOrder);
-}
-
 
 void ReadFromParallelRemoteReplicasStep::initializePipeline(QueryPipelineBuilder & pipeline, const BuildQueryPipelineSettings &)
 {
@@ -358,12 +354,14 @@ void ReadFromParallelRemoteReplicasStep::addPipeForSingeReplica(Pipes & pipes, s
     bool add_totals = false;
     bool add_extremes = false;
     bool async_read = context->getSettingsRef().async_socket_for_remote;
+
     assert(stage != QueryProcessingStage::Complete);
+    assert(output_stream);
 
     auto remote_query_executor = std::make_shared<RemoteQueryExecutor>(
         pool,
         formattedAST(query_ast),
-        header,
+        output_stream->header,
         context,
         throttler,
         scalars,
